@@ -1,5 +1,5 @@
 {
-  "name": "myday-deepstream-clustering-plugin",
+  "name": "deepstream.io-nats-cluster",
   "version": "0.5.0",
   "description": "Community maintained clustering for Deepstream.io using NATS.",
   "main": "index.js",
