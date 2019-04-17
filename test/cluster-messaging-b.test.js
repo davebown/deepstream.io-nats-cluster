@@ -9,7 +9,7 @@ const HOST = 'localhost';
 const CLIENT_COUNT = 8;
 
 describe('Cluster Messaging', function () {
-  this.timeout(10000);
+  this.timeout(40000);
   const servers = [];
   const clients = [];
 
