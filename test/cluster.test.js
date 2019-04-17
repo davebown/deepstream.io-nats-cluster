@@ -184,11 +184,11 @@ describe('Cluster', function () {
     await logoutA2Promise;
   });
 
-  it.skip('Should unsubscribe from presence events.', async () => {
+ /* it.skip('Should unsubscribe from presence events.', async () => {
     // This doesn't work because the unsubscribe event messaging seems to be off.
     clientB.presence.unsubscribe();
     clientC.presence.unsubscribe();
-  });
+  });*/
 
   it('Should sync presence with a new server.', async () => {
     const serverD = await getServer(
