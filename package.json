@@ -1,6 +1,6 @@
 {
   "name": "deepstream.io-nats-cluster",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Community maintained clustering for Deepstream.io using NATS.",
   "main": "index.js",
   "directories": {
@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "deepstream.io": "3.2.4",
-    "nats": "^0.8.4",
+    "nats": "1.2.10",
     "node-cache": "^4.2.0"
   },
   "devDependencies": {
