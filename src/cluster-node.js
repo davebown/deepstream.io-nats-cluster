@@ -37,7 +37,7 @@ module.exports = class ClusterNode extends events.EventEmitter {
             natsConnectOptions.url = this.natsOptions.url;
             this.logger.info(C.EVENT.INFO, `NATS url configured as: ${natsConnectOptions.url}`);
         } else {
-            natsConnectOptions.url = 'nats://nats:4222';
+            natsConnectOptions.url = 'nats://127.0.0.1:4222';
             this.logger.warn(C.EVENT.INFO, `NATS url not specified, defaulted to: ${natsConnectOptions.url}`);
         }
 
