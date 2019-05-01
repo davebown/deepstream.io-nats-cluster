@@ -32,7 +32,7 @@ module.exports = class ClusterNode extends events.EventEmitter {
             maxReconnectAttempts: -1,
             noRandomize: false,
             user: this.natsOptions.user,
-            pass: this.natsOptions.password,
+            pass: this.natsOptions.pass || this.natsOptions.password,
             tls: this.natsOptions.tls
         };
 
