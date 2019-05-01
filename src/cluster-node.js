@@ -1,7 +1,8 @@
 const NatsClient = require('nats'),
     NodeCache = require('node-cache'),
     events = require('events'),
-    StateRegistry = require('./state-registry');
+    StateRegistry = require('./state-registry'),
+    C = require('deepstream.io/src/constants/constants');
 
 module.exports = class ClusterNode extends events.EventEmitter {
 
@@ -16,7 +17,8 @@ module.exports = class ClusterNode extends events.EventEmitter {
         this.isReady = false;
         this.peerCache = new NodeCache({ checkperiod: this.peerTTL }); //All other peer servers that have sent _advertisePeer messages in last 30 seconds
         this.advertiseIntervalObject = null;
-        this.directServerCallbacks = {};        
+        this.directServerCallbacks = {};
+        this.logger = options.logger || { info: (event, logMessage) => { console.log(`${event} | ${logMessage}`); }, warn: (event, logMessage) => { console.log(`${event} | ${logMessage}`); }, error: (event, logMessage) => { console.error(`${event} | ${logMessage}`);}}
         
         var clusterNode = this;
 
@@ -35,14 +37,10 @@ module.exports = class ClusterNode extends events.EventEmitter {
         };
 
         this.natsClient = NatsClient.connect(natsConnectOptions);
-        
-        this.natsClient.on('error', (err) => {
-            clusterNode.emit('error', err);
-        });
 
         this.natsClient.on('connect', (client) => {
 
-            clusterNode.emit('connected', client.currentServer.url.host);
+            clusterNode.logger.info('NATS_CONNECTION_ESTABLISHED',`Connected to NATS host: ${client.currentServer.url.host}`);
 
             clusterNode.createSystemSubscriptions();
             //Advertise this server (node) to others
@@ -61,6 +59,36 @@ module.exports = class ClusterNode extends events.EventEmitter {
             });
         });
 
+        this.natsClient.on('error', (err) => {
+            clusterNode.logger.error('NATS_CONNECTION_ERROR', `NATS error has occurred: ${err}`);
+            setImmediate(() => {
+                this.emit('error', err);
+            });
+        });
+
+        this.natsClient.on('disconnect', () => {
+            clusterNode.logger.warn('NATS_DISCONNECTED', `Disconnected from NATS.`);
+            setImmediate(() => {
+                this.emit('error', 'Disconnected from NATS');
+            });
+        });
+
+        this.natsClient.on('reconnecting', () => {
+            clusterNode.logger.info('NATS_RECONNECTING', `Attempting to reconnect to NATS.`);
+        });
+
+        this.natsClient.on('reconnect', (client) => {
+            clusterNode.logger.info('NATS_CONNECTION_ESTABLISHED',`Reconnected to NATS host: ${client.currentServer.url.host}`);
+            setImmediate(() => {
+                this.isReady = true;
+                this.emit('ready');
+            });
+        });
+
+        this.natsClient.on('close', () => {
+            clusterNode.logger.warn('NATS_CLOSED', `NATS connection is permanently closed and will not reconnect.`);
+        });
+
         //Setup event handlers
 
         //Generate removePeer event when peer is deleted from cache
@@ -71,13 +99,16 @@ module.exports = class ClusterNode extends events.EventEmitter {
         //Handle removePeer event
         this.on('removePeer', (peer) => {
             const serverName = peer.name;
+            clusterNode.logger.info(C.EVENT.CLUSTER_LEAVE,`Peer node ${serverName} has been removed from the deepstream cluster.`);
+
             if (serverName) {
               Object.keys(clusterNode.stateRegistries).forEach((topic) => clusterNode.stateRegistries[topic].removeAll(serverName));
             }
           });
       
         //Handle addPeer event
-        this.on('addPeer', (peer) => {            
+        this.on('addPeer', (peer) => {
+            clusterNode.logger.info(C.EVENT.CLUSTER_JOIN,`Peer node ${peer.name} has been added to the deepstream cluster.`);        
             if (clusterNode.requestStateTimeout) {
                 clearTimeout(clusterNode.requestStateTimeout);
             }
