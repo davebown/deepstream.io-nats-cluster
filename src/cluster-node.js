@@ -22,21 +22,51 @@ module.exports = class ClusterNode extends events.EventEmitter {
         
         var clusterNode = this;
 
-        var natsConnectOptions = { 
-            servers: this.natsOptions.servers,
-            name: this.options.serverName,
+        var natsConnectOptions = {
+            encoding: 'utf8',
             json: true,
-            waitOnFirstConnect: true,
-            reconnect: true,
-            reconnectTimeWait: 2000,
+            maxPingOut: 2,
             maxReconnectAttempts: -1,
-            noRandomize: false,
-            user: this.natsOptions.user,
-            pass: this.natsOptions.pass || this.natsOptions.password,
-            tls: this.natsOptions.tls
+            waitOnFirstConnect: true
         };
 
+        if(this.natsOptions.servers != null) {
+            natsConnectOptions.servers = this.natsOptions.servers;
+            this.logger.info(C.EVENT.INFO, `NATS servers configured as: ${natsConnectOptions.servers}`);
+        } else if(this.natsOptions.url != null) {
+            natsConnectOptions.url = this.natsOptions.url;
+            this.logger.info(C.EVENT.INFO, `NATS url configured as: ${natsConnectOptions.url}`);
+        } else {
+            natsConnectOptions.url = 'nats://nats:4222';
+            this.logger.warn(C.EVENT.INFO, `NATS url not specified, defaulted to: ${natsConnectOptions.url}`);
+        }
+
+        if(this.natsOptions.user != null) {
+            natsConnectOptions.user = this.natsOptions.user;
+            this.logger.info(C.EVENT.INFO, 'NATS user has been configured.');
+        }
+
+        if(this.natsOptions.pass != null) {
+            natsConnectOptions.pass = this.natsOptions.pass;
+            this.logger.info(C.EVENT.INFO, 'NATS password has been configured.');
+        } else if(this.natsOptions.password != null) {
+            natsConnectOptions.pass = this.natsOptions.password;
+            this.logger.info(C.EVENT.INFO, 'NATS password has been configured.');
+        }
+
+        if(this.natsOptions.tls != null) {
+            natsConnectOptions.tls = this.natsOptions.tls;
+            this.logger.info(C.EVENT.INFO, 'NATS tls options have been configured.');
+        }
+
         this.natsClient = NatsClient.connect(natsConnectOptions);
+
+        this.natsClient.on('error', (err) => {
+            clusterNode.logger.error('NATS_CONNECTION_ERROR', `NATS error has occurred: ${err}`);
+            setImmediate(() => {
+                this.emit('error', err);
+            });
+        });
 
         this.natsClient.on('connect', (client) => {
 
@@ -58,14 +88,7 @@ module.exports = class ClusterNode extends events.EventEmitter {
                 this.emit('ready');
             });
         });
-
-        this.natsClient.on('error', (err) => {
-            clusterNode.logger.error('NATS_CONNECTION_ERROR', `NATS error has occurred: ${err}`);
-            setImmediate(() => {
-                this.emit('error', err);
-            });
-        });
-
+        
         this.natsClient.on('disconnect', () => {
             clusterNode.logger.warn('NATS_DISCONNECTED', `Disconnected from NATS.`);
             setImmediate(() => {
